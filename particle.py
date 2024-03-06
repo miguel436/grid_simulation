@@ -23,7 +23,11 @@ def decay(target: float) -> Callable[[float], float]:
     result = np.polyfit(x_norm, y_norm, deg=2)
 
     def score(x: float) -> float:
-        fit_val = result[0] * x ** 2 + result[1] * x + result[2]
-        return 1 - min(max(fit_val, 0), 1)
+          fit_val = result[0] * x ** 2 + result[1] * x + result[2]
+
+          if x > target:
+               return 0
+
+          return 1 - min(max(fit_val, 0), 1)
 
     return score

@@ -13,7 +13,7 @@ class Grid:
         self.radius = radius
         self.points: List[Dict[str, float]] = Grid.starting_points(n)
         self.anchors = self._get_anchors()
-        self.scorer = decay(self.radius)
+        self.scorer = decay(self.radius + 0.04)
 
     # Function to create a square with n * n points centered around 0
     # Input: INTEGER with dimensions of the square
@@ -62,33 +62,33 @@ class Grid:
         return slope
 
     
-    def _get_ray_grid(self, n: int) -> Dict[str, Union[float, np.ndarray, Dict[str, float]]]:
+    def _get_ray_grid(self, n: int) -> Dict[str, Union[float, np.ndarray]]:
         min_y_grid = min([point['y'] for point in self.points])
         max_y_grid = max([point['y'] for point in self.points])
 
-        min_x_grid = min([point['x'] for point in self.points])
-        max_x_grid = max([point['x'] for point in self.points])
-
-        y_grid = np.linspace(min_y_grid-self.radius, max_y_grid+self.radius, endpoint=True, num=n)
-        x_grid = np.linspace(min_x_grid-self.radius, max_x_grid+self.radius, endpoint=True, num=n)
-
-        full_grid = []
-        for x_coord in x_grid:
-            for y_coord in y_grid:
-                full_grid.append({
-                    'x': x_coord,
-                    'y': y_coord
-                })
+        y_grid = np.arange(min_y_grid-self.radius, max_y_grid+self.radius, step=0.0075)
 
         return {
             'min_grid': min_y_grid,
             'max_grid': max_y_grid,
             'ray_grid': y_grid,
-            'full_grid': full_grid,
         }
 
+    def _get_horizontal_stream(self, y_val: float, n: int) -> List[float]:
+        min_x_grid = min([point['x'] for point in self.points])
+        max_x_grid = max([point['x'] for point in self.points])
+
+        # anchor_line = self._get_anchor_line()
+        # x_threshold = y_val / anchor_line if anchor_line != 0 else 0
+
+        x_grid = np.arange(min_x_grid-self.radius, max_x_grid+self.radius, step=0.0075)
+        # x_grid = [x for x in x_grid if x >= x_threshold]
+
+        return x_grid
+
+
     def plot_coordinates(self, grid_size: int) -> None:
-        (min_y_grid, max_y_grid, ray_grid, _) = self._get_ray_grid(grid_size).values()
+        (min_y_grid, max_y_grid, ray_grid) = self._get_ray_grid(grid_size).values()
 
         _, ax = plt.subplots()
 
@@ -148,18 +148,11 @@ class Grid:
             # Update the points of anchors
             self.anchors[i] = {'x': new_x, 'y': new_y}
 
-    def _optimize_grid(self, grid: List[Dict[str, float]]):
+    def _optimize_points(self) -> List[Dict[str, float]]:
         slope = self._get_anchor_line()
-
         points = [point for point in self.points if point['y'] >= point['x'] * slope - 0.1]
-        new_grid = [point for point in grid if point['y'] >= point['x'] * slope]
-
-        return {
-            'points': points,
-            'grid': new_grid,
-        }
-
-
+        return points
+    
     # Method to score the square grid its given rotation at the moment
     # Input: ARRAY with the Y coordinates of all fluid rays
     #        FLOAT indicating the radius of action of each point of the square grid (>0.5 and there is overlap)
@@ -169,60 +162,50 @@ class Grid:
     #           - stdev: standard deviation of the scores for the current grid
     #           - zeros: amount of rays that do not interact with any points of the grid
     def score_grid(self, grid_size: int) -> Dict[str, float]:
-        (_, _, _, full_grid) = self._get_ray_grid(grid_size).values()
-        (points, grid) = self._optimize_grid(full_grid).values() 
-
-        # List to store scores 
-        grid_scores: List[float] = []
-
+        (_, _, ray_grid) = self._get_ray_grid(grid_size).values()
+        # points = self._optimize_points() 
+                
         # Counter for the rays without interactions
         zero_counter = 0
-        
-        full_progress = len(points) * len(grid)
-        curr_progress = 0
-        
+
+        all_ray_scores = []
         # Go through all the rays (fluid)
-        for dot in grid:
+
+        for ray in ray_grid:
             
-            (x_dot, y_dot) = dot.values()
+            y_ray = ray
+            x_rays = self._get_horizontal_stream(y_ray, grid_size)
 
-            # Go through all points in the square grid
-            for point in points:
-                # Get the y coord of that point
-                (x, y) = point.values()
+            ray_score = 0
 
-                # Euclidean distance
-                distance = np.sqrt((x_dot - x) ** 2 + (y_dot - y) ** 2)
+            for x_ray in x_rays:
+                # Go through all points in the square grid
+                for point in self.points:
+                    # Get the y coord of that point
+                    (x, y) = point.values()
 
-                # Scoring using decay
-                point_score = self.scorer(distance)
+                    # Euclidean distance
+                    distance = np.sqrt((x_ray - x) ** 2 + (y_ray - y) ** 2)
 
-                # Add score
-                grid_scores.append(distance)
-                # grid_scores.append(point_score)
+                    # Scoring using decay
+                    point_score = self.scorer(distance)
 
-                # Progress tracking
-                curr_progress += 1 / full_progress
+                    # Add score
+                    ray_score += point_score
 
-                # If the total score is 0, increase the counter of zeros
-                if point_score == 0:
-                    zero_counter += 1
-
-        plt.figure()
-        plt.hist(grid_scores)
-
-        plt.figure()
-        plt.hist(grid_scores)
-
-        plt.show()
+            # If the total score is 0, increase the counter of zeros
+            if ray_score == 0:
+                zero_counter += 1
+            
+            all_ray_scores.append(ray_score)
 
         # Compute various statistics taking into account all rays
         answer = {
-            'mean': np.mean(grid_scores),
-            'median': np.median(grid_scores),
-            'stdev': np.std(grid_scores),
+            'mean': np.mean(all_ray_scores),
+            'median': np.median(all_ray_scores),
+            'stdev': np.std(all_ray_scores),
             'zeros': zero_counter,
-            # 'scores': grid_scores,
+            'scores': all_ray_scores,
         }
        
 
@@ -231,145 +214,24 @@ class Grid:
 
 
 my_grid = Grid(n=7, radius=0.49)
-
-
 all_answers = []
 
-my_grid.rotate_grid(30)
-answer = my_grid.score_grid(100)
+answer = my_grid.score_grid(1000)
 answer['angle'] = 0
 all_answers.append(answer)
-print(answer)
 
-# my_grid.plot_coordinates(100)
+print(0)
 
-"""
 for i in range(1, 46, 1):
+
     my_grid.rotate_grid(1)
-    answer = my_grid.score_grid(100)
-
-
+    answer = my_grid.score_grid(1000)
     answer['angle'] = i
 
     all_answers.append(answer)
-"""
 
-    
+    print(i)
+
+
 df = pd.DataFrame(all_answers)
-print(df)
-
-
-
-
-
-"""
-# Array to store the best angle for each iteration
-all_best_angles = []
-
-# Array with all possible radius of the points of the square grid
-# Currently, it goes from 0.50 to 0.01
-all_point_radius = [x / 100 for x in list(range(50, 35, -2))]
-# Iterate through all possible radius
-for idx, point_radius in enumerate(all_point_radius):
-
-    print(f'Loading {idx / len(all_point_radius) * 100}%')
-
-    # Create a square grid with 7x7 points
-    my_square = Square(7)
-
-    # Define the initial rotational angle (0 degrees, not radians)
-    initial_angle = 0
-    # Define the final rotational angle (46 degrees, not radians)
-    # Any more than that and the results become redundant
-    final_angle = 46
-    # How much the angle will increase with each rotation
-    step = 1
-
-    # Create array with all rotations to be performed (first rotation is 0º)
-    all_angles = [0] + [step for _ in range(initial_angle, final_angle // step + 1, 1)]
-
-    # Define arrays to store the different statistics being tracked
-    all_means = []
-    all_medians = []
-    all_devs = []
-    all_zeros = []
-    all_sums = []
-
-    # Iterate through all the angles for a given point radius
-    for angle in all_angles:
-
-        # Rotate the square grid
-        my_square.rotate_square(angle)
-
-        # Compute the height of the square grid
-        max_y = max([point['y'] for point in my_square.points])
-        min_y = min([point['y'] for point in my_square.points])
-
-        # Create a grid of rays considering the height of the square grid
-        # Rays are uniformly distributed across the whole grid
-        ray_full_grid = np.linspace(min_y-point_radius, max_y+point_radius, endpoint=True, num=2000)
-
-        # Score the current ray grid (remove the rays on the edge)
-        grid_data = my_square.score_grid(ray_full_grid[1:-1], point_radius)
-
-        # Save the results for the current analysis
-        all_zeros.append(grid_data['zeros'])
-        all_means.append(grid_data['mean'])
-        all_medians.append(grid_data['median'])
-        all_devs.append(grid_data['stdev'])
-        all_sums.append(np.sum(grid_data['scores']))
-
-    # Create an array with all the angles
-    x_values = range(initial_angle, final_angle + 2, step)
-
-    fig, ax = plt.subplots(nrows=3, ncols=1)
-    fig.suptitle(f'Score metrics per rotation angle (radius={point_radius})')
-
-
-    ax[0].plot(x_values, all_means, '-o', label='mean')
-    ax[0].legend()
-    ax[1].plot(x_values, all_medians, '-o', label='median')
-    ax[1].legend()
-    # ax[2].plot(x_values, all_zeros, '-o', label='zeros')
-    # ax[2].legend()
-
-
-    ax[2].plot(x_values, all_devs, '-o', label='deviation')
-    ax[2].legend()
-
-    plt.show()
-	
-    # After computing the metrics for all angles for a given point radius,
-    # normalize the results for the different metrics between 0 and 1 for comparability
-    norm_mean = [(x-min(all_means)) / (max(all_means) - min(all_means)) for x in all_means]
-    norm_median = [(x-min(all_medians)) / (max(all_medians) - min(all_medians)) for x in all_medians]
-    norm_dev = [1 - (x-min(all_devs)) / (max(all_devs) - min(all_devs)) for x in all_devs]
-
-    # Compute the final score by combining the 3 metrics mean, median and standard deviation
-    # Standard deviation is the most important variable because of consistency
-    final_combo_scores = [a * 0 + b * 1 + c * 0 for a, b, c in zip(norm_mean, norm_median, norm_dev)]
-
-    fig, ax = plt.subplots(nrows=2, ncols=1)
-    fig.suptitle(f'Radius: {point_radius}')
-    
-    ax[0].plot(x_values, final_combo_scores, '-o', label='combo')
-    ax[0].legend()
-    ax[1].plot(x_values, all_zeros, '-o', label='zeros')
-    ax[1].legend()
-    
-    plt.show()
-
-    # Save the angle for which the highest final score occurs
-    all_best_angles.append(x_values[np.argmax(final_combo_scores)])
-    # print(x_values[np.argmax(final_combo_scores)])
-
-
-plt.figure()
-plt.title('Best scoring angle for each point radius')
-plt.plot(all_point_radius, all_best_angles, '-o')
-plt.xticks(all_point_radius)
-plt.ylabel('Degrees')
-plt.xlabel('Point Radius')
-
-plt.show()
-"""
+df.to_csv('simulation_long_tiago.csv', index=False)
