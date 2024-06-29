@@ -66,7 +66,7 @@ class Grid:
         min_y_grid = min([point['y'] for point in self.points])
         max_y_grid = max([point['y'] for point in self.points])
 
-        y_grid = np.arange(min_y_grid-self.radius, max_y_grid+self.radius, step=0.0075)
+        y_grid = np.arange(min_y_grid-self.radius, max_y_grid+self.radius, step=0.1)
 
         return {
             'min_grid': min_y_grid,
@@ -93,7 +93,7 @@ class Grid:
         _, ax = plt.subplots()
 
         for ray in ray_grid:
-            plt.axhline(y=ray, color='blue', alpha=0.05)
+            plt.axhline(y=ray, color='black', alpha=0.3)
 
         for idx, element in enumerate(self.points):
             (x, y) = element.values()
@@ -111,6 +111,11 @@ class Grid:
         ax.set_xlim(min_y_grid-0.5, max_y_grid+0.5)
         ax.set_ylim(min_y_grid-0.5, max_y_grid+0.5)
         ax.set_aspect('equal', adjustable='box')
+
+        ax.set_title("Tilted Grid Example")
+        ax.set_ylabel("Arbitrary Units")
+        ax.set_xlabel("Arbitrary Units")
+        plt.axis('off')
         plt.show()
 
     # Method to rotate the square grid around the point X = 0; Y = 0
@@ -214,6 +219,12 @@ class Grid:
 
 
 my_grid = Grid(n=7, radius=0.49)
+
+my_grid.rotate_grid(10)
+
+my_grid.plot_coordinates(100)
+
+"""
 all_answers = []
 
 answer = my_grid.score_grid(1000)
@@ -235,3 +246,4 @@ for i in range(1, 46, 1):
 
 df = pd.DataFrame(all_answers)
 df.to_csv('simulation_long_tiago.csv', index=False)
+"""

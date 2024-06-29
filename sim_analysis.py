@@ -17,6 +17,9 @@ df['scores'] = df['scores'].apply(eval)
 df['normality'] = df['scores'].apply(normaltest)
 
 
+
+
+
 """
 df.drop(columns='Unnamed: 0', inplace=True)
 
@@ -28,17 +31,27 @@ df['stdev'] = df['scores'].apply(np.std)
 df = df.head(-1)
 """
 
-"""
-fig, ax = plt.subplots(nrows=3, ncols=1)
+plt.figure()
 
-ax[0].plot(df['angle'], df['mean'])
-ax[1].plot(df['angle'], df['median'])
-ax[2].plot(df['angle'], df['stdev'])
+plt.title('Median Grid Score')
 
-for i in range(0, 3, 1):
-    ax[i].axvline(x=8, color='red')
-    ax[i].axvline(x=16, color='red')
+plt.plot(df['angle'], df['median'])
+plt.axvline(x=16, color='red', linestyle="dotted")
+
+plt.xlabel('Tilt Angle (degrees)')
+plt.ylabel('Median score')
+plt.xticks([0] + list(range(0, 48, 4)))
+plt.xlim(0, 46)
 
 
+plt.figure()
+plt.title('Mean Grid Score')
+
+plt.plot(df['angle'], df['mean'])
+plt.axvline(x=16, color='red', linestyle="dotted")
+
+plt.xlabel('Tilt Angle (degrees)')
+plt.ylabel('Mean score')
+plt.xticks([0] + list(range(0, 48, 4)))
+plt.xlim(0, 46)
 plt.show()
-"""
