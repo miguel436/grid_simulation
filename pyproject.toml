@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "grid_genius"
+version = "1.0.1"
+description = ""
+authors = []
+packages = []
+
+[tool.poetry.dependencies]
+python = ">=3.10.0, <4.0"
+pydantic = "^2.7.4"
+pydantic-factories = "^1.17.3"
+python-dotenv = "^1.0.1"
+pandas = "^2.1.1"
+scipy = "^1.11.3"
+numpy = "^1.26.4"
+matplotlib = "^3.8.2"
+black = "*"
+ruff = "^0.3.5"
+isort = "^5.13.2"
+jupyterlab = "^4.1.6"
+notebook = "^7.1.2"
+ipywidgets = "^8.1.2"
+click = "^8.1.7"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+lint.ignore = ["E501"]
+lint.fixable = ["F"]
+extend-exclude = [".env/", "venv", ".venv", "notebooks", ".cache", "transformers", "notebook-venv"]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+
+[tool.black]
+line-length = 79
+extend-exclude = '''
+/(
+  | .env
+  | .venv
+  | venv
+  | notebooks
+  | .cache
+  | notebook-venv
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 79
+skip = [".env/", "venv", "notebook-venv", ".venv", "notebooks", ".cache"]
