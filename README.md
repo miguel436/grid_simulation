@@ -1,6 +1,6 @@
 # Grid Simulation Project
 
-Simulation of a microfluidic grid for plastic filtering
+Simulation of an Acoustofluidic Grid for Nanoplastic Capture
 
 ## Setup
 
